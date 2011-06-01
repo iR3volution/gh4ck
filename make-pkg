@@ -1,0 +1,24 @@
+#!/bin/bash
+echo Packaging...
+pushd build
+mkdir -p DEBIAN
+cd DEBIAN
+wget http://ir3volution.com/repo/source-deb/gh4ck/DEBIAN/control
+mv ../bin/postinst ./
+sed '/Depends:/ d' control > tmp
+echo Depends: com.ericasadun.utils, ldid > control
+cat tmp >> control
+rm -rf tmp
+chmod 0755 *
+cd ..
+chmod 0755 DEBIAN
+mkdir usr
+mv bin usr/
+mkdir -p var/gh4ck
+mv app var/gh4ck/
+mv post var/gh4ck/
+mv html var/gh4ck/
+mv usr/bin/*.sh var/gh4ck/
+popd
+dpkg-deb -b build $PWD/
+echo Done Packaging

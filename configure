@@ -1,0 +1,126 @@
+#!/bin/bash
+
+############################################################################################################################################################
+##									RUN ME										  ##
+############################################################################################################################################################
+
+args=$( echo $@ | sed 's/--//' | sed 's/-//' )
+
+for i in $args
+do
+	if [ "${i:0:9}" == "compiler=" ]
+	then
+	        export COMPILER="${i:9}"
+        	echo "Using compiler ${COMPILER}"
+	fi
+	if [ "${i:0:8}" == "include=" ]
+	then
+        	export INCLUDE="${i:8}"
+        	echo "Recieving headers from ${INCLUDE}"
+	fi
+done
+
+if [ "$args" == "help" ]
+then
+	echo "$0: run to create Makefile for gh4ck"
+        echo "Options: (* means required)"
+        printf "\t--compiler=[COMPILER] - Use [COMPILER] to compile gh4ck\n"
+	printf "\t--help - Display this help message\n"
+        printf "\t*--include=[DIR] - Use [DIR] to compile gh4ck\n"
+	exit 0
+elif [ "$args" == "h" ]
+then
+	echo "$0: run to create Makefile for gh4ck"
+	echo "Options: (* means required)"
+	printf "\t--compiler=[COMPILER] - Use [COMPILER] to compile gh4ck\n"
+	printf "\t--help - Display this help message\n"
+	printf "\t*--include=[DIR] - Use [DIR] to compile gh4ck\n"
+	exit 0
+elif [ "x${args}" == "x" ]
+then
+	echo "$0: Incorrect amount of arguments"
+	echo "Options: (* means required)"
+        printf "\t--compiler=[COMPILER] - Use [COMPILER] to compile gh4ck\n"
+        printf "\t--help - Display this help message\n"
+        printf "\t*--include=[DIR] - Use [DIR] to compile gh4ck\n"
+        exit 1
+else
+	if [ "x$COMPILER" == "x" ]
+	then
+	        export COMPILER=/usr/bin/arm-apple-darwin9-gcc
+        	echo "Using compiler ${COMPILER}"
+	fi
+
+	if [ "x${INCLUDE}" == "x" ]
+	then
+	        echo "ERROR! The include directory must be provided!"
+        	exit 1
+	fi
+fi
+
+
+printf "Checking for ${COMPILER}..."
+if test -e ${COMPILER}
+then
+	printf "Found\n"
+else
+	printf "Not found\n"
+	exit 1
+fi
+
+printf "Checking for include directory..."
+if test -e "${INCLUDE}"
+then
+	printf "Found\n"
+else
+	printf "Not found\n"
+	exit 1
+fi
+
+pushd ${INCLUDE} &>>/dev/null
+
+printf "Checking for sys/types.h..."
+if test -e "sys/types.h"
+then
+	printf "Found\n"
+else
+	printf "Not found\n"
+	exit 1
+fi
+
+popd &>>/dev/null
+
+printf "Creating Makefile: "
+export s="$"
+rm -rf Makefile
+cat >> Makefile << _END_MAKE
+COMPILER = ${COMPILER}
+INCLUDE = ${INCLUDE}
+
+all:
+	@rm -rf build
+	@mkdir -p build/bin
+	@echo Compiling gh4ck...
+	@${s}(COMPILER) src/gh4ck.c -I${s}(INCLUDE) -o build/bin/gh4ck
+	@echo Compiling make-gh4ck...
+	@${s}(COMPILER) src/make-gh4ck.c -I${s}(INCLUDE) -o build/bin/make-gh4ck
+	@echo Creating script...
+	@echo "#!/bin/bash" > build/bin/postinst
+	@echo "chmod 4755 gh4ck make-gh4ck" >> build/bin/postinst
+	@echo "chown root:wheel gh4ck make-gh4ck" >> build/bin/postinst
+	@echo "ldid -S gh4ck make-gh4ck" >> build/bin/postinst
+	@echo Copying over requires...
+	@cp src/*.sh build/bin/
+	@cp -R requires/* build/
+	@echo Done
+
+pkg: all
+	@./make-pkg
+
+package: pkg
+
+clean:
+	rm -rf build *.deb
+_END_MAKE
+
+printf " Done\n"

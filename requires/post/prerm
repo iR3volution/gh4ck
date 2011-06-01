@@ -1,0 +1,66 @@
+#!/bin/bash
+game="Touchgrind"
+echo "Searching for ${game}.app...."
+cd /var/mobile/Applications/*/*${game}*.app
+if [ "$?" == "0" ]
+then
+        echo "Found"
+        gameApp="${PWD}"
+else
+        echo "Not found"
+      echo
+      echo "Searching in all Info.plist for ${game}..."
+      for n in /var/mobile/Applications/*/*.app
+      do
+        cd ${n%/*}/*.app
+        app="$(plutil -key CFBundleDisplayName Info.plist)"
+        if [ "x${app}" == "x" ]
+        then
+              app="$(plutil -key CFBundleExecutable Info.plist)"
+        fi
+        if [ "${app}" == "${game}" ]
+        then
+              echo "Found"
+              gameApp="${n}"
+              break
+        fi
+      done
+      if [ "x${gameApp}" == "x" ]
+      then
+            echo "Still not found"
+            echo 
+            echo "Exiting..."
+            exit 127
+      fi
+fi
+
+cd ${gameApp}
+echo "Loading files..."
+if test -e /usr/games/${game}/hacks.list
+then
+for n in $(cat /usr/games/${game}/hacks.list)
+do
+    files[y]="${n}"
+    y=$[y+1]
+done
+if [ "x${files[@]}" == "x" ]
+then
+     echo "NO FILES LOADED!!"
+     exit 127
+fi 2>>/dev/null
+else
+echo "MAJOR FILE MISSING!!"
+echo "UNABLE TO RECOVER!"
+exit 127
+fi
+
+echo "Removing hacks...."
+y=0
+for n in $( cat /usr/games/${game}/test )
+do
+     dir="${n%/*}"
+     x="${n#*/}"
+     mv "/usr/games/${game}/bkp/${x}" "${gameApp}/${dir}/"
+done
+rm -f /Library/PreferenceLoader/Preferences/${game}.*
+echo 'Done'
